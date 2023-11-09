@@ -22,8 +22,8 @@
 
   let timer: number = null;
   var isRunning = false;
-
-
+  const FPS = 30;
+  const delay = 1000/FPS;
   async function openCamera(): Promise<HTMLVideoElement> {
     const camera: HTMLVideoElement = document.createElement("video");
     camera.setAttribute("width", output.width);
@@ -55,7 +55,7 @@
     });
   }
 
-  const FPS = 30; // Target number of frames processed per second.
+
   function captureFrame() {
     const begin = Date.now();
     cap.read(frame);
@@ -90,7 +90,7 @@
     videoSource = await openCamera();
     timer = setInterval(async()=>{
       await run();
-    }, 1000)
+    }, delay)
   });
 
   onDestroy(()=>{
@@ -106,27 +106,24 @@
       let face = frameBGR.roi(rects[0]);
       let name = prompt("Say your name:");
 
-      people = people.concat({
-        done: false,
-        text: "",
+      const faceVec = face2vec(face).clone();
+
+        const canvas = document.createElement("canvas");
+        canvas.setAttribute("width", 96);
+        canvas.setAttribute("height", 96);
+        // var cell = document.getElementById("targetImgs").insertCell(0);
+        // cell.appendChild(canvas);
+        const faceResized = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC3);
+        cv.resize(face, faceResized, {width: canvas.width, height: canvas.height});
+        cv.cvtColor(faceResized, faceResized, cv.COLOR_BGR2RGB);
+        cv.imshow(canvas, faceResized);
+        faceResized.delete();
+        var imgSrc = canvas.toDataURL({format: 'image/png', quality:1, width:96, height:96});
+        people = people.concat({
+          name: name,
+          vec: faceVec,
+         img: imgSrc,
       });
-
-      //   var cell = document.getElementById("targetNames").insertCell(0);
-      //   cell.innerHTML = name;
-
-      //   persons[name] = face2vec(face).clone();
-
-      //   var canvas = document.createElement("canvas");
-      //   canvas.setAttribute("width", 96);
-      //   canvas.setAttribute("height", 96);
-      //   var cell = document.getElementById("targetImgs").insertCell(0);
-      //   cell.appendChild(canvas);
-
-      //   var faceResized = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC3);
-      //   cv.resize(face, faceResized, {width: canvas.width, height: canvas.height});
-      //   cv.cvtColor(faceResized, faceResized, cv.COLOR_BGR2RGB);
-      //   cv.imshow(canvas, faceResized);
-      //   faceResized.delete();
     }
   };
 
@@ -231,18 +228,10 @@
   <button on:click={addPersion} disabled={!modelLoaded}>Add</button>
   <ul class="todos">
     {#each people as person}
-      <li class:done={person.done}>
-        <!-- <input
-          type="checkbox"
-          checked={todo.done}
-        />
-  
-        <input
-          type="text"
-          placeholder="What needs to be done?"
-          value={todo.text}
-        /> -->
-      </li>
+    <!-- svelte-ignore a11y-missing-attribute -->
+    <img width="96" height="96" src={person.imgSrc}/>
+    <!-- <canvas width="96" height="96" ></canvas> -->
+
     {/each}
   </ul>
   <div>
