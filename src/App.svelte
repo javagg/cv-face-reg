@@ -1,13 +1,16 @@
 <script lang="ts">
   import cv from "@techstark/opencv-js";
-  import type { Net } from "@techstark/opencv-js";
+  import type { Net, log } from "@techstark/opencv-js";
 
   import { onDestroy, onMount } from "svelte";
   import { createFileFromUrl } from "./lib/util";
 
-  let proto = "https://raw.githubusercontent.com/opencv/opencv/4.x/samples/dnn/face_detector/deploy_lowres.prototxt";
-  let weights = "https://raw.githubusercontent.com/opencv/opencv_3rdparty/dnn_samples_face_detector_20180205_fp16/res10_300x300_ssd_iter_140000_fp16.caffemodel";
-  let recognModel = "https://raw.githubusercontent.com/pyannote/pyannote-data/master/openface.nn4.small2.v1.t7";
+  let proto =
+    "https://raw.githubusercontent.com/opencv/opencv/4.x/samples/dnn/face_detector/deploy_lowres.prototxt";
+  let weights =
+    "https://raw.githubusercontent.com/opencv/opencv_3rdparty/dnn_samples_face_detector_20180205_fp16/res10_300x300_ssd_iter_140000_fp16.caffemodel";
+  let recognModel =
+    "https://raw.githubusercontent.com/pyannote/pyannote-data/master/openface.nn4.small2.v1.t7";
   let videoSource = null;
   let output = null;
   let loading = false;
@@ -16,14 +19,19 @@
   let frameBGR: cv.Mat = null;
   let message = "";
 
-  let people = [];
+  let people: Person[] = [];
 
   let modelLoaded = false;
+  
+  interface Person {
+    name?: string
+    img?: string
+  }
 
   let timer: number = null;
   var isRunning = false;
   const FPS = 30;
-  const delay = 1000/FPS;
+  const delay = 1000 / FPS;
   async function openCamera(): Promise<HTMLVideoElement> {
     const camera: HTMLVideoElement = document.createElement("video");
     camera.setAttribute("width", output.width);
@@ -41,20 +49,12 @@
       cap = new cv.VideoCapture(camera);
       frame = new cv.Mat(camera.height, camera.width, cv.CV_8UC4);
       frameBGR = new cv.Mat(camera.height, camera.width, cv.CV_8UC3);
-      return camera
+      return camera;
     } catch (error) {
       console.log(error);
       return null;
     }
   }
-
-  function add() {
-    people = people.concat({
-      done: false,
-      text: "",
-    });
-  }
-
 
   function captureFrame() {
     const begin = Date.now();
@@ -88,17 +88,14 @@
   onMount(async () => {
     await loadModels();
     videoSource = await openCamera();
-    timer = setInterval(async()=>{
+    timer = setInterval(async () => {
       await run();
-    }, delay)
+    }, delay);
   });
 
-  onDestroy(()=>{
-    clearInterval(timer)
-  })
-  // function clear() {
-  // 	people = people.filter((t) => !t.done);
-  // }
+  onDestroy(() => {
+    clearInterval(timer);
+  });
 
   const addPersion = async () => {
     const rects = detectFaces(frameBGR);
@@ -108,21 +105,23 @@
 
       const faceVec = face2vec(face).clone();
 
-        const canvas = document.createElement("canvas");
-        canvas.setAttribute("width", 96);
-        canvas.setAttribute("height", 96);
-        // var cell = document.getElementById("targetImgs").insertCell(0);
-        // cell.appendChild(canvas);
-        const faceResized = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC3);
-        cv.resize(face, faceResized, {width: canvas.width, height: canvas.height});
-        cv.cvtColor(faceResized, faceResized, cv.COLOR_BGR2RGB);
-        cv.imshow(canvas, faceResized);
-        faceResized.delete();
-        var imgSrc = canvas.toDataURL({format: 'image/png', quality:1, width:96, height:96});
-        people = people.concat({
-          name: name,
-          vec: faceVec,
-         img: imgSrc,
+      console.log(face2vec)
+      const canvas = document.createElement("canvas");
+      canvas.setAttribute("width", 96);
+      canvas.setAttribute("height", 96);
+
+      const faceResized = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC3);
+      cv.resize(face, faceResized, {
+        width: canvas.width,
+        height: canvas.height,
+      });
+      cv.cvtColor(faceResized, faceResized, cv.COLOR_BGR2RGB);
+      cv.imshow(canvas, faceResized);
+      faceResized.delete();
+      const imgSrc = canvas.toDataURL();
+      people = people.concat({
+        name: name,
+        img: imgSrc
       });
     }
   };
@@ -221,17 +220,15 @@
     isRunning = true;
     captureFrame();
   }
-
 </script>
 
 <main>
   <button on:click={addPersion} disabled={!modelLoaded}>Add</button>
-  <ul class="todos">
+  <ul>
     {#each people as person}
-    <!-- svelte-ignore a11y-missing-attribute -->
-    <img width="96" height="96" src={person.imgSrc}/>
-    <!-- <canvas width="96" height="96" ></canvas> -->
-
+       <!-- svelte-ignore a11y-missing-attribute -->
+      <img width="96" height="96" src={person.img} />
+      <!-- <canvas width="96" height="96" ></canvas> -->
     {/each}
   </ul>
   <div>
@@ -247,5 +244,5 @@
   .can {
     width: 600px;
     height: 400px;
-  } 
+  }
 </style>
